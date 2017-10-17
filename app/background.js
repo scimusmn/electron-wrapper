@@ -24,7 +24,7 @@ import env from './env';
 import os from 'os';
 
 let mainWindow;
-app.on('ready', function () {
+app.on('ready', function() {
 
   mainWindow = new BrowserWindow({
     x: 0,
@@ -42,7 +42,7 @@ app.on('ready', function () {
    * and then issuing a call to go into kiosk mode after a few milliseconds.
    */
   if (env.name == 'production') {
-    setTimeout(function () {
+    setTimeout(function() {
       mainWindow.setKiosk(true);
     }, 100);
   }
@@ -94,13 +94,16 @@ app.on('ready', function () {
     console.log('Switching to Finder');
     promisedExec('open -a Finder');
   });
+
   if (!retQuit) {
     console.log('Quit keyboard registration failed');
   }
+
   const retReload = globalShortcut.register('CommandOrControl+R', () => {
     console.log('Reload the page');
     mainWindow.reload();
   });
+
   if (!retReload) {
     console.log('Reload keyboard registration failed');
   }
@@ -133,14 +136,15 @@ function loadWindowUptimeDelay(configFileObj) {
     mainWindow.loadURL(configFileObj.url);
   } else {
     console.log('Delaying launch ' + launchDelay + ' seconds');
-    mainWindow.loadURL('file://' + __dirname + '/launch-delay.html');
-    setTimeout(function () {
+    mainWindow.loadURL('file://' + __dirname + '/launch-delay.html?delay=' + launchDelay);
+    setTimeout(function() {
       mainWindow.loadURL(configFileObj.url);
     }, launchDelay * 1000);
   }
 
 }
 
-app.on('window-all-closed', function () {
+app.on('window-all-closed', function() {
   app.quit();
 });
+
