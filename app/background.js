@@ -9,7 +9,7 @@
 import jetpack from 'fs-jetpack';
 
 // Base electron modules
-import { app, BrowserWindow, globalShortcut } from 'electron';
+import { screen, app, BrowserWindow, globalShortcut } from 'electron';
 
 let childProcess = require('child_process');
 let promisedExec = childProcess.exec;
@@ -23,15 +23,16 @@ import env from './env';
 
 import os from 'os';
 
-let mainWindow;
-app.on('ready', function() {
+// We want to track all currently
+// connected displays, as well as
+// all current browser windows.
+let configDisplays = [];
+let availableDisplays = [];
+let windows = [];
+let focusWindow;
+let focusInterval;
 
-  mainWindow = new BrowserWindow({
-    x: 0,
-    y: 0,
-    width: 800,
-    height: 600,
-  });
+app.on('ready', function() {
 
   //
   // Hack to make full-screen kiosk mode actually work.
@@ -41,44 +42,33 @@ app.on('ready', function() {
   // This hack makes kiosk mode actually work by waiting for the app to launch
   // and then issuing a call to go into kiosk mode after a few milliseconds.
   //
-  if (env.name === 'production') {
-    setTimeout(function () {
-      mainWindow.setKiosk(true);
-    }, 100);
-  }
+  /*  if (env.name === 'production') {
+      setTimeout(function() {
+        mainWindow.setKiosk(true);
+      }, 100);
+    }*/
 
   //
   // Show dev tools when we're not in production mode
   //
-  if (env.name !== 'production') {
-    devHelper.setDevMenu();
-    mainWindow.openDevTools();
-  }
+  /*  if (env.name !== 'production') {
+      devHelper.setDevMenu();
+      mainWindow.openDevTools();
+    }*/
 
   //
   // Open the app
   //
   console.log(`This platform is ${process.platform}`);
+
   if (env.name === 'test') {
+
     mainWindow.loadURL('file://' + __dirname + '/spec.html');
+
   } else {
-    let configFile = '';
-    switch (process.platform) {
-      case 'win32': {
-        configFile = '/usr/local/etc/kiosk/config.json';
-        break;
-      }
 
-      case 'darwin': {
-        configFile = '/usr/local/etc/kiosk/config.json';
-        break;
-      }
+    parseConfigFile(getConfigPath());
 
-      default: {
-        configFile = '/usr/local/etc/kiosk/config.json';
-      }
-    }
-    loadWindowConfigFile(configFile);
   }
 
   //
@@ -110,36 +100,170 @@ app.on('ready', function() {
 
 });
 
-function loadWindowConfigFile(configFile) {
-  const configFileObj = jetpack.read(configFile, 'json');
-  console.log('configFileObj: ', configFileObj);
-  if (configFileObj !== null) {
-    loadWindowUptimeDelay(configFileObj);
-  } else {
-    console.log('Config file [' + configFile + '] not present.');
-    mainWindow.loadURL('file://' + __dirname + '/config-error.html');
+// Get all displays, then ensure
+// correct windows are launched
+// to each display.
+function matchWindowsToDisplays() {
+
+  availableDisplays = screen.getAllDisplays();
+  windows = BrowserWindow.getAllWindows();
+
+  console.log('Available displays:', availableDisplays.length);
+
+  for (let i in availableDisplays) {
+
+    const targetDisplay = availableDisplays[i];
+
+    console.log('targetDisplay', i);
+    console.log(targetDisplay);
+
+    const newWindow = new BrowserWindow({
+      x: targetDisplay.bounds.x + 50,
+      y: targetDisplay.bounds.y + 50,
+      width: 600,
+      height: 400,
+    });
+
+    // Find matching config display
+    for (let j in configDisplays) {
+
+      const cfgDisplay = configDisplays[j];
+
+      if (cfgDisplay.targetDisplayId == targetDisplay.id) {
+
+        console.log('Match found! ', cfgDisplay.label);
+
+        // Match
+        newWindow.loadURL(cfgDisplay.url);
+
+        if (cfgDisplay.keepFocus == true) {
+
+          console.log('Focus window set: ', cfgDisplay.label);
+
+          focusWindow = newWindow;
+
+        }
+
+      }
+    }
+
   }
+
+  // Ensure window focus
+  // every 5 seconds
+  clearInterval(focusInterval);
+  focusInterval = setInterval(() => {
+
+    ensureWindowFocus();
+
+    windows = BrowserWindow.getAllWindows();
+
+    // console.dir(windows);
+    // console.log(windows[0].getTitle());
+
+    // windows[0].setTitle(configDisplays[0].label);
+
+  }, 5000);
+
 }
 
-function loadWindowUptimeDelay(configFileObj) {
+function getConfigPath() {
+
+  let path = '';
+
+  switch (process.platform) {
+    case 'win32': {
+      path = '/usr/local/etc/kiosk/config.json';
+      break;
+    }
+
+    case 'darwin': {
+      path = '/usr/local/etc/kiosk/config.json';
+      break;
+    }
+
+    default: {
+      path = '/usr/local/etc/kiosk/config.json';
+    }
+  }
+
+  return path;
+
+}
+
+function parseConfigFile(path) {
+
+  const configFileObj = jetpack.read(path, 'json');
+
+  if (configFileObj == null) {
+
+    console.log('Config file [' + configFile + '] not present.');
+    mainWindow.loadURL('file://' + __dirname + '/config-error.html');
+    return;
+
+  } else {
+
+    // Array representing all
+    // the displays we're hoping
+    // to launch.
+    configDisplays = configFileObj.displays;
+
+    loadWindowsUptimeDelay();
+
+  }
+
+}
+
+function logMultiDisplayIssue(message) {
+
+  console.log('MultiDisplay Issue:');
+  console.log(' --> ' + message);
+
+  // TODO: Inform a window that something is wrong,
+  // so it can be displayed onscreen.
+
+}
+
+function ensureWindowFocus() {
+
+  // When OS focus is outside Electron,
+  // force focus on main window.
+  if (focusWindow && BrowserWindow.getFocusedWindow() == null) {
+    // First,ell OS to focus on this window
+    focusWindow.focus();
+
+    // Then focus on web page (for keyboard events).
+    focusWindow.webContents.focus();
+  }
+
+}
+
+function loadWindowsUptimeDelay() {
+
+  console.log('loadWindowsUptimeDelay');
+
   // Seconds since launch, when it will be safe to load the URL
   const nominalUptime = 300;
 
   // Seconds to wait if we are not in the nominal uptime window
-  const launchDelay = 60;
-
-  console.log('os.uptime(): ', os.uptime());
-  console.log('nominalUptime: ', nominalUptime);
+  const launchDelay = 10; // 60
 
   if (os.uptime() > nominalUptime) {
+
     console.log('Launching immediately');
-    mainWindow.loadURL(configFileObj.url);
+    matchWindowsToDisplays();
+
   } else {
+
     console.log('Delaying launch ' + launchDelay + ' seconds');
     mainWindow.loadURL('file://' + __dirname + '/launch-delay.html?delay=' + launchDelay);
-    setTimeout(function() {
-      mainWindow.loadURL(configFileObj.url);
+
+    setTimeout(() => {
+
+      matchWindowsToDisplays();
+
     }, launchDelay * 1000);
+
   }
 
 }
