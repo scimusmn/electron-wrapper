@@ -28,33 +28,17 @@ import os from 'os';
 // all current browser windows.
 let configDisplays = [];
 let availableDisplays = [];
-let windows = [];
 let focusWindow;
 let focusInterval;
 
 app.on('ready', function() {
 
-  //
-  // Hack to make full-screen kiosk mode actually work.
-  //
-  // There is an active bug with Electron, kiosk mode, and Yosemite.
-  // https://github.com/atom/electron/issues/1054
-  // This hack makes kiosk mode actually work by waiting for the app to launch
-  // and then issuing a call to go into kiosk mode after a few milliseconds.
-  //
-  /*  if (env.name === 'production') {
-      setTimeout(function() {
-        mainWindow.setKiosk(true);
-      }, 100);
-    }*/
-
-  //
-  // Show dev tools when we're not in production mode
-  //
-  /*  if (env.name !== 'production') {
-      devHelper.setDevMenu();
-      mainWindow.openDevTools();
-    }*/
+  // Always list available displays.
+  // This can be used to retrieve IDs
+  // to be added in config.json
+  console.log('=== List Available Displays ===');
+  console.log(screen.getAllDisplays());
+  console.log('===');
 
   //
   // Open the app
@@ -80,6 +64,7 @@ app.on('ready', function() {
   // app on quit. For maintenance, we probably just need to be able to get
   // to the Finder while the application remains running in the background.
   //
+  // FINDER
   const retQuit = globalShortcut.register('CommandOrControl+F', () => {
     console.log('Switching to Finder');
     promisedExec('open -a Finder');
@@ -89,13 +74,28 @@ app.on('ready', function() {
     console.log('Quit keyboard registration failed');
   }
 
+  // RELOAD
   const retReload = globalShortcut.register('CommandOrControl+R', () => {
     console.log('Reload the page');
-    mainWindow.reload();
+    const windows = BrowserWindow.getAllWindows();
+    for (let w in windows) {
+      windows[w].reload();
+    }
   });
 
   if (!retReload) {
     console.log('Reload keyboard registration failed');
+  }
+
+  // (RE)LAUNCH WINDOWS
+  const retRelaunch = globalShortcut.register('CommandOrControl+L', () => {
+    console.log('Relaunching all windows');
+    closeActiveWindows();
+    launchWindowsToDisplays();
+  });
+
+  if (!retReload) {
+    console.log('Relaunch windows keyboard registration failed');
   }
 
 });
@@ -103,10 +103,10 @@ app.on('ready', function() {
 // Get all displays, then ensure
 // correct windows are launched
 // to each display.
-function matchWindowsToDisplays() {
+function launchWindowsToDisplays() {
 
+  // Refresh list of current displays.
   availableDisplays = screen.getAllDisplays();
-  windows = BrowserWindow.getAllWindows();
 
   console.log('Available displays:', availableDisplays.length);
 
@@ -117,32 +117,17 @@ function matchWindowsToDisplays() {
     console.log('targetDisplay', i);
     console.log(targetDisplay);
 
-    const newWindow = new BrowserWindow({
-      x: targetDisplay.bounds.x + 50,
-      y: targetDisplay.bounds.y + 50,
-      width: 600,
-      height: 400,
-    });
-
     // Find matching config display
     for (let j in configDisplays) {
 
-      const cfgDisplay = configDisplays[j];
+      const displayConfig = configDisplays[j];
 
-      if (cfgDisplay.targetDisplayId == targetDisplay.id) {
+      if (displayConfig.targetDisplayId == targetDisplay.id) {
 
-        console.log('Match found! ', cfgDisplay.label);
+        console.log('Match found! ', displayConfig.label);
 
-        // Match
-        newWindow.loadURL(cfgDisplay.url);
-
-        if (cfgDisplay.keepFocus == true) {
-
-          console.log('Focus window set: ', cfgDisplay.label);
-
-          focusWindow = newWindow;
-
-        }
+        // Match! Launch new window.
+        launchNewWindow(displayConfig, targetDisplay);
 
       }
     }
@@ -151,19 +136,68 @@ function matchWindowsToDisplays() {
 
   // Ensure window focus
   // every 5 seconds
-  clearInterval(focusInterval);
-  focusInterval = setInterval(() => {
+  ensureWindowFocus();
 
-    ensureWindowFocus();
+}
 
-    windows = BrowserWindow.getAllWindows();
+function launchNewWindow(displayConfig, targetDisplay) {
 
-    // console.dir(windows);
-    // console.log(windows[0].getTitle());
+  // Match. Launch appropriate window.
+  const newWindow = new BrowserWindow({
+    x: targetDisplay.bounds.x + 50,
+    y: targetDisplay.bounds.y + 50,
+    width: 600,
+    height: 400,
+  });
 
-    // windows[0].setTitle(configDisplays[0].label);
+  // Load appropriate URL from config
+  newWindow.loadURL(displayConfig.url);
 
-  }, 5000);
+  // If flagged, remember this window
+  // to ensure focus later.
+  if (displayConfig.keepFocus == true) {
+
+    console.log('Focus window set to: ', displayConfig.label);
+
+    focusWindow = newWindow;
+
+  }
+
+  //
+  // Hack to make full-screen kiosk mode actually work.
+  //
+  // There is an active bug with Electron, kiosk mode, and Yosemite.
+  // https://github.com/atom/electron/issues/1054
+  // This hack makes kiosk mode actually work by waiting for the app to launch
+  // and then issuing a call to go into kiosk mode after a few milliseconds.
+  //
+  // if (env.name === 'production') {
+  setTimeout(function() {
+      newWindow.setKiosk(true);
+    }, 100);
+
+  // }
+
+  //
+  // Show dev tools when we're not in production mode
+  //
+  if (env.name !== 'production') {
+    devHelper.setDevMenu();
+    newWindow.openDevTools();
+  }
+
+}
+
+function closeActiveWindows() {
+
+  // Close all active windows
+  // for a fresh start.
+  // When no windows are open,
+  // this does nothing.
+  const windows = BrowserWindow.getAllWindows();
+  for (let w in windows) {
+    windows[w].close();
+  }
 
 }
 
@@ -214,9 +248,9 @@ function parseConfigFile(path) {
 
 }
 
-function logMultiDisplayIssue(message) {
+function logDisplayIssue(message) {
 
-  console.log('MultiDisplay Issue:');
+  console.log('Display Issue:');
   console.log(' --> ' + message);
 
   // TODO: Inform a window that something is wrong,
@@ -226,15 +260,22 @@ function logMultiDisplayIssue(message) {
 
 function ensureWindowFocus() {
 
+  if (!focusWindow) {
+    return null;
+  }
+
   // When OS focus is outside Electron,
   // force focus on main window.
-  if (focusWindow && BrowserWindow.getFocusedWindow() == null) {
+  clearInterval(focusInterval);
+  focusInterval = setInterval(() => {
+
     // First,ell OS to focus on this window
     focusWindow.focus();
 
     // Then focus on web page (for keyboard events).
     focusWindow.webContents.focus();
-  }
+
+  }, 5000);
 
 }
 
@@ -251,7 +292,7 @@ function loadWindowsUptimeDelay() {
   if (os.uptime() > nominalUptime) {
 
     console.log('Launching immediately');
-    matchWindowsToDisplays();
+    launchWindowsToDisplays();
 
   } else {
 
@@ -260,7 +301,7 @@ function loadWindowsUptimeDelay() {
 
     setTimeout(() => {
 
-      matchWindowsToDisplays();
+      launchWindowsToDisplays();
 
     }, launchDelay * 1000);
 
