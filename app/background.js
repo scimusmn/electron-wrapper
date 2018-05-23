@@ -89,9 +89,13 @@ app.on('ready', function() {
 
   // (RE)LAUNCH WINDOWS
   const retRelaunch = globalShortcut.register('CommandOrControl+L', () => {
+
     console.log('Relaunching all windows');
-    closeActiveWindows();
-    launchWindowsToDisplays();
+    // TODO: This currently breaks with multiple
+    // windows but would be very nice to have.
+    // closeActiveWindows();
+    // launchWindowsToDisplays();
+
   });
 
   if (!retReload) {
@@ -195,8 +199,8 @@ function closeActiveWindows() {
   // When no windows are open,
   // this does nothing.
   const windows = BrowserWindow.getAllWindows();
-  for (let w in windows) {
-    windows[w].close();
+  for (let i = windows.length - 1; i >= 0; i--) {
+    windows[i].close();
   }
 
 }

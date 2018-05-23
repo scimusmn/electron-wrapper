@@ -1,3 +1,17 @@
 {
-  "url": "http://example.org"
+
+  "displays": [
+    {
+      "label": "Primary Screen",
+      "targetDisplayId": "69731904",
+      "url": "http://keycode.info/",
+      "keepFocus": true
+    },
+    {
+      "label": "Secondary Screen",
+      "targetDisplayId": "69531557",
+      "url": "http://www.example.org/",
+      "keepFocus": false
+    }
+  ]
 }
