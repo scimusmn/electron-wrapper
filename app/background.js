@@ -91,6 +91,7 @@ app.on('ready', function() {
   const retRelaunch = globalShortcut.register('CommandOrControl+L', () => {
 
     console.log('Relaunching all windows');
+
     // TODO: This currently breaks with multiple
     // windows but would be very nice to have.
     // closeActiveWindows();
@@ -128,7 +129,7 @@ function launchWindowsToDisplays() {
 
       if (displayConfig.targetDisplayId == targetDisplay.id) {
 
-        console.log('Match found! ', displayConfig.label);
+        console.log('Match found. ', displayConfig.label);
 
         // Match! Launch new window.
         launchNewWindow(displayConfig, targetDisplay);
@@ -185,10 +186,10 @@ function launchNewWindow(displayConfig, targetDisplay) {
   //
   // Show dev tools when we're not in production mode
   //
-  if (env.name !== 'production') {
+ /* if (env.name !== 'production') {
     devHelper.setDevMenu();
     newWindow.openDevTools();
-  }
+  }*/
 
 }
 
@@ -210,6 +211,7 @@ function getConfigPath() {
   let path = '';
 
   switch (process.platform) {
+
     case 'win32': {
       path = '/usr/local/etc/kiosk/config.json';
       break;
@@ -223,6 +225,7 @@ function getConfigPath() {
     default: {
       path = '/usr/local/etc/kiosk/config.json';
     }
+
   }
 
   return path;
@@ -240,6 +243,18 @@ function parseConfigFile(path) {
     return;
 
   } else {
+
+    const commands = configFileObj.commands;
+
+    console.log(commands);
+
+    // Run as command line operations.
+    // Useful for starting node servers.
+    for (var i = 0; i < commands.length; i++) {
+      const commandString = commands[i];
+      console.log('Run command ->', commandString);
+      promisedExec(commandString);
+    }
 
     // Array representing all
     // the displays we're hoping

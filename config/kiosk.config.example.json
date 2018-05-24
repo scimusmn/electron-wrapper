@@ -1,5 +1,7 @@
 {
-
+  "commands": [
+    "cd ~/example/path/project-folder/ && node server"
+  ],
   "displays": [
     {
       "label": "Primary Screen",
