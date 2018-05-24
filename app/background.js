@@ -47,7 +47,7 @@ app.on('ready', function() {
 
   if (env.name === 'test') {
 
-    mainWindow.loadURL('file://' + __dirname + '/spec.html');
+    launchFallbackWindow('file://' + __dirname + '/spec.html')
 
   } else {
 
@@ -188,10 +188,25 @@ function launchNewWindow(displayConfig, targetDisplay) {
   //
   // Show dev tools when we're not in production mode
   //
- /* if (env.name !== 'production') {
-    devHelper.setDevMenu();
-    newWindow.openDevTools();
-  }*/
+  /* if (env.name !== 'production') {
+     devHelper.setDevMenu();
+     newWindow.openDevTools();
+   }*/
+
+}
+
+function launchFallbackWindow(url) {
+
+  // Match. Launch appropriate window.
+  const newWindow = new BrowserWindow({
+    x: 50,
+    y: 50,
+    width: 780,
+    height: 620,
+  });
+
+  // Load appropriate URL from config
+  newWindow.loadURL(url);
 
 }
 
@@ -241,7 +256,7 @@ function parseConfigFile(path) {
   if (configFileObj == null) {
 
     console.log('Config file [' + configFile + '] not present.');
-    mainWindow.loadURL('file://' + __dirname + '/config-error.html');
+    launchFallbackWindow('file://' + __dirname + '/config-error.html');
     return;
 
   } else {
@@ -308,7 +323,7 @@ function loadWindowsUptimeDelay() {
   const nominalUptime = 300;
 
   // Seconds to wait if we are not in the nominal uptime window
-  const launchDelay = 10; // 60
+  const launchDelay = 30; // 60
 
   if (os.uptime() > nominalUptime) {
 
@@ -318,7 +333,8 @@ function loadWindowsUptimeDelay() {
   } else {
 
     console.log('Delaying launch ' + launchDelay + ' seconds');
-    mainWindow.loadURL('file://' + __dirname + '/launch-delay.html?delay=' + launchDelay);
+
+    // mainWindow.loadURL('file://' + __dirname + '/launch-delay.html?delay=' + launchDelay);
 
     setTimeout(() => {
 
