@@ -179,6 +179,8 @@ function launchNewWindow(displayConfig, targetDisplay) {
   // if (env.name === 'production') {
   setTimeout(function() {
       newWindow.setKiosk(true);
+      newWindow.setAutoHideMenuBar(true);
+      newWindow.setMenuBarVisibility(false);
     }, 100);
 
   // }
