@@ -27,7 +27,6 @@ import os from 'os';
 // connected displays, as well as
 // all current browser windows.
 let configDisplays = [];
-let availableDisplays = [];
 let focusWindow;
 let focusInterval;
 
@@ -108,10 +107,10 @@ app.on('ready', function() {
 // Get all displays, then ensure
 // correct windows are launched
 // to each display.
-function launchWindowsToDisplays() {
+function launchWindowsToDisplays(delayURL) {
 
-  // Refresh list of current displays.
-  availableDisplays = screen.getAllDisplays();
+  // List of currently available displays.
+  const availableDisplays = screen.getAllDisplays();
 
   console.log('Available displays:', availableDisplays.length);
 
@@ -132,7 +131,8 @@ function launchWindowsToDisplays() {
         console.log('Match found. ', displayConfig.label);
 
         // Match! Launch new window.
-        launchNewWindow(displayConfig, targetDisplay);
+        displayConfig.targetDisplay = targetDisplay;
+        launchNewWindow(displayConfig, delayURL);
 
       }
     }
@@ -145,18 +145,27 @@ function launchWindowsToDisplays() {
 
 }
 
-function launchNewWindow(displayConfig, targetDisplay) {
+function launchNewWindow(displayConfig, delayURL) {
 
   // Match. Launch appropriate window.
   const newWindow = new BrowserWindow({
-    x: targetDisplay.bounds.x + 50,
-    y: targetDisplay.bounds.y + 50,
+    x: displayConfig.targetDisplay.bounds.x + 50,
+    y: displayConfig.targetDisplay.bounds.y + 50,
     width: 600,
-    height: 400,
+    height: 420,
   });
 
   // Load appropriate URL from config
-  newWindow.loadURL(displayConfig.url);
+  if (!delayURL || delayURL == false) {
+    newWindow.loadURL(displayConfig.url);
+  } else {
+    const delaySecs = 30;
+    const delayPage = 'file://' + __dirname + '/launch-delay.html?display=' + displayConfig.label + '&delay=' + delaySecs;
+    newWindow.loadURL(delayPage);
+  }
+
+  // Attach this window to config obj
+  displayConfig.launchedWindow = newWindow;
 
   // If flagged, remember this window
   // to ensure focus later.
@@ -176,23 +185,41 @@ function launchNewWindow(displayConfig, targetDisplay) {
   // This hack makes kiosk mode actually work by waiting for the app to launch
   // and then issuing a call to go into kiosk mode after a few milliseconds.
   //
-  // if (env.name === 'production') {
-  setTimeout(function() {
+  if (env.name === 'production') {
+
+    setTimeout(() => {
       newWindow.setKiosk(true);
       newWindow.setAutoHideMenuBar(true);
       newWindow.setMenuBarVisibility(false);
     }, 100);
 
-  // }
+  }
 
   //
   // Show dev tools when we're not in production mode
   //
-  /* if (env.name !== 'production') {
-     devHelper.setDevMenu();
-     newWindow.openDevTools();
-   }*/
+  if (env.name !== 'production') {
+    devHelper.setDevMenu();
+    newWindow.openDevTools();
+  }
 
+}
+
+function reloadWindowURLs() {
+  // Loop over previously launched
+  // windows and load config URLs
+  // Find matching config display
+  for (let j in configDisplays) {
+
+    const displayConfig = configDisplays[j];
+
+    if (displayConfig.launchedWindow) {
+
+      const launchedWindow = displayConfig.launchedWindow;
+      launchedWindow.loadURL(displayConfig.url);
+
+    }
+  }
 }
 
 function launchFallbackWindow(url) {
@@ -201,8 +228,8 @@ function launchFallbackWindow(url) {
   const newWindow = new BrowserWindow({
     x: 50,
     y: 50,
-    width: 780,
-    height: 620,
+    width: 700,
+    height: 600,
   });
 
   // Load appropriate URL from config
@@ -269,7 +296,7 @@ function parseConfigFile(path) {
     // Useful for starting node servers.
     for (var i = 0; i < commands.length; i++) {
       const commandString = commands[i];
-      console.log('Run command ->', commandString);
+      console.log('Running command ->', commandString);
       promisedExec(commandString);
     }
 
@@ -297,6 +324,7 @@ function logDisplayIssue(message) {
 function ensureWindowFocus() {
 
   if (!focusWindow) {
+    console.log('No focus window set. Skipping...');
     return null;
   }
 
@@ -305,7 +333,7 @@ function ensureWindowFocus() {
   clearInterval(focusInterval);
   focusInterval = setInterval(() => {
 
-    // First,ell OS to focus on this window
+    // First, tell OS to focus on this window
     focusWindow.focus();
 
     // Then focus on web page (for keyboard events).
@@ -324,8 +352,8 @@ function loadWindowsUptimeDelay() {
 
   // Seconds to wait if we are not in the nominal uptime window
   const launchDelay = 30; // 60
-
-  if (os.uptime() > nominalUptime) {
+  //TEMP
+  if (1 == 2 && os.uptime() > nominalUptime) {
 
     console.log('Launching immediately');
     launchWindowsToDisplays();
@@ -334,11 +362,12 @@ function loadWindowsUptimeDelay() {
 
     console.log('Delaying launch ' + launchDelay + ' seconds');
 
-    // mainWindow.loadURL('file://' + __dirname + '/launch-delay.html?delay=' + launchDelay);
+    // Launch with countdown for now...
+    launchWindowsToDisplays(true);
 
     setTimeout(() => {
 
-      launchWindowsToDisplays();
+      reloadWindowURLs();
 
     }, launchDelay * 1000);
 
