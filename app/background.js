@@ -30,14 +30,19 @@ let configDisplays = [];
 let focusWindow;
 let focusInterval;
 
+// Seconds since launch, when it will be safe to load the URL
+const nominalUptime = 300;
+
+// Seconds to wait if we are not in the nominal uptime window
+let launchDelay = 30; // 60
+
 app.on('ready', function() {
 
   // Always list available displays.
   // This can be used to retrieve IDs
   // to be added in config.json
-  console.log('=== List Available Displays ===');
+  console.log('=== Available Displays ===');
   console.log(screen.getAllDisplays());
-  console.log('===');
 
   //
   // Open the app
@@ -107,7 +112,7 @@ app.on('ready', function() {
 // Get all displays, then ensure
 // correct windows are launched
 // to each display.
-function launchWindowsToDisplays(delayURL) {
+function launchWindowsToDisplays() {
 
   // List of currently available displays.
   const availableDisplays = screen.getAllDisplays();
@@ -132,7 +137,7 @@ function launchWindowsToDisplays(delayURL) {
 
         // Match! Launch new window.
         displayConfig.targetDisplay = targetDisplay;
-        launchNewWindow(displayConfig, delayURL);
+        launchNewWindow(displayConfig);
 
       }
     }
@@ -145,7 +150,7 @@ function launchWindowsToDisplays(delayURL) {
 
 }
 
-function launchNewWindow(displayConfig, delayURL) {
+function launchNewWindow(displayConfig) {
 
   // Match. Launch appropriate window.
   const newWindow = new BrowserWindow({
@@ -156,11 +161,10 @@ function launchNewWindow(displayConfig, delayURL) {
   });
 
   // Load appropriate URL from config
-  if (!delayURL || delayURL == false) {
+  if (launchDelay == 0) {
     newWindow.loadURL(displayConfig.url);
   } else {
-    const delaySecs = 30;
-    const delayPage = 'file://' + __dirname + '/launch-delay.html?display=' + displayConfig.label + '&delay=' + delaySecs;
+    const delayPage = 'file://' + __dirname + '/launch-delay.html?display=' + displayConfig.label + '&delay=' + launchDelay;
     newWindow.loadURL(delayPage);
   }
 
@@ -347,15 +351,10 @@ function loadWindowsUptimeDelay() {
 
   console.log('loadWindowsUptimeDelay');
 
-  // Seconds since launch, when it will be safe to load the URL
-  const nominalUptime = 300;
-
-  // Seconds to wait if we are not in the nominal uptime window
-  const launchDelay = 30; // 60
-  //TEMP
-  if (1 == 2 && os.uptime() > nominalUptime) {
+  if (os.uptime() > nominalUptime) {
 
     console.log('Launching immediately');
+    launchDelay = 0;
     launchWindowsToDisplays();
 
   } else {
@@ -363,7 +362,7 @@ function loadWindowsUptimeDelay() {
     console.log('Delaying launch ' + launchDelay + ' seconds');
 
     // Launch with countdown for now...
-    launchWindowsToDisplays(true);
+    launchWindowsToDisplays();
 
     setTimeout(() => {
 
