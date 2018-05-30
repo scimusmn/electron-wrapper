@@ -36,7 +36,14 @@ const nominalUptime = 300;
 // Seconds to wait if we are not in the nominal uptime window
 let launchDelay = 30; // 60
 
+// Track issues as they come up in process
+let issues = [];
+
 app.on('ready', function() {
+
+  // Clear issues from
+  // previous sessions.
+  clearIssues();
 
   // Always list available displays.
   // This can be used to retrieve IDs
@@ -98,6 +105,9 @@ app.on('ready', function() {
 
     // TODO: This currently breaks with multiple
     // windows but would be very nice to have.
+    // Part of the reason it doesn't work as
+    // desired is that we quite the application
+    // on 'all-windows-closed' event.
     // closeActiveWindows();
     // launchWindowsToDisplays();
 
@@ -126,6 +136,8 @@ function launchWindowsToDisplays() {
     console.log('targetDisplay', i);
     console.log(targetDisplay);
 
+    let foundMatch = false;
+
     // Find matching config display
     for (let j in configDisplays) {
 
@@ -134,6 +146,7 @@ function launchWindowsToDisplays() {
       if (displayConfig.targetDisplayId == targetDisplay.id) {
 
         console.log('Match found. ', displayConfig.label);
+        foundMatch = true;
 
         // Match! Launch new window.
         displayConfig.targetDisplay = targetDisplay;
@@ -147,6 +160,20 @@ function launchWindowsToDisplays() {
   // Ensure window focus
   // every 5 seconds
   ensureWindowFocus();
+
+  // Make note of any config displays
+  // that haven't found a matching display
+  for (let j in configDisplays) {
+
+    const displayConfig = configDisplays[j];
+
+    if (!displayConfig.targetDisplay) {
+
+      logIssue('Display Warning: ' + displayConfig.label + ' was not found.');
+
+    }
+
+  }
 
 }
 
@@ -163,9 +190,15 @@ function launchNewWindow(displayConfig) {
   // Load appropriate URL from config
   if (launchDelay == 0) {
     newWindow.loadURL(displayConfig.url);
+
   } else {
     const delayPage = 'file://' + __dirname + '/launch-delay.html?display=' + displayConfig.label + '&delay=' + launchDelay;
     newWindow.loadURL(delayPage);
+
+    newWindow.webContents.on('did-finish-load', () => {
+      newWindow.webContents.send('display-issue', issues);
+    });
+
   }
 
   // Attach this window to config obj
@@ -286,7 +319,7 @@ function parseConfigFile(path) {
 
   if (configFileObj == null) {
 
-    console.log('Config file [' + configFile + '] not present.');
+    logIssue('Config file [' + configFile + '] not present.');
     launchFallbackWindow('file://' + __dirname + '/config-error.html');
     return;
 
@@ -312,16 +345,6 @@ function parseConfigFile(path) {
     loadWindowsUptimeDelay();
 
   }
-
-}
-
-function logDisplayIssue(message) {
-
-  console.log('Display Issue:');
-  console.log(' --> ' + message);
-
-  // TODO: Inform a window that something is wrong,
-  // so it can be displayed onscreen.
 
 }
 
@@ -351,7 +374,8 @@ function loadWindowsUptimeDelay() {
 
   console.log('loadWindowsUptimeDelay');
 
-  if (os.uptime() > nominalUptime) {
+  if (1 == 2) {
+    // if (os.uptime() > nominalUptime) {
 
     console.log('Launching immediately');
     launchDelay = 0;
@@ -371,6 +395,21 @@ function loadWindowsUptimeDelay() {
     }, launchDelay * 1000);
 
   }
+
+}
+
+function logIssue(issueMsg) {
+
+  console.log('Log Issue --> ' + issueMsg);
+
+  // Log cumulating issues
+  issues.push(issueMsg);
+
+}
+
+function clearIssues() {
+
+  issues = [];
 
 }
 
