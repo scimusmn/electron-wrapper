@@ -23,9 +23,9 @@ import env from './env';
 
 import os from 'os';
 
-// We want to track all currently
-// connected displays, as well as
-// all current browser windows.
+// Place to store all the
+// displays listed in config
+// and which will hold focus.
 let configDisplays = [];
 let focusWindow;
 let focusInterval;
@@ -374,8 +374,7 @@ function loadWindowsUptimeDelay() {
 
   console.log('loadWindowsUptimeDelay');
 
-  if (1 == 2) {
-    // if (os.uptime() > nominalUptime) {
+  if (os.uptime() > nominalUptime) {
 
     console.log('Launching immediately');
     launchDelay = 0;
