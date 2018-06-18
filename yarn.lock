@@ -660,6 +660,10 @@ electron-download@^3.0.1:
     semver "^5.3.0"
     sumchecker "^1.2.0"
 
+electron-log@^2.2.15:
+  version "2.2.15"
+  resolved "https://registry.yarnpkg.com/electron-log/-/electron-log-2.2.15.tgz#28c2dd65c9437fcf31f09f5f856c338a83daab76"
+
 electron@^1.8.4:
   version "1.8.4"
   resolved "https://registry.yarnpkg.com/electron/-/electron-1.8.4.tgz#cca8d0e6889f238f55b414ad224f03e03b226a38"

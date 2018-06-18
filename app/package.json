@@ -7,6 +7,7 @@
   "author": "Science Museum of Minnesota",
   "main": "background.js",
   "dependencies": {
+    "electron-log": "^2.2.15",
     "fs-jetpack": "^0.7.0"
   }
 }
