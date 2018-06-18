@@ -37,19 +37,23 @@ const nominalUptime = 300;
 let launchDelay = 30; // 60
 
 // Track issues as they come up in process
+var log = require('electron-log');
 let issues = [];
 
 app.on('ready', function() {
 
-  // Clear issues from
-  // previous sessions.
-  clearIssues();
+  // Init file logging
+  setupIssueLog();
+
+  log.warn('Electron Startup ~~~~ ');
 
   // Always list available displays.
   // This can be used to retrieve IDs
   // to be added in config.json
-  console.log('=== Available Displays ===');
-  console.log(screen.getAllDisplays());
+  const displaysAtStart = screen.getAllDisplays();
+  const displayInfoString = 'Available displays at start: ' + JSON.stringify(displaysAtStart);
+  console.log(displaysAtStart);
+  log.warn(displayInfoString);
 
   //
   // Open the app
@@ -132,10 +136,6 @@ function launchWindowsToDisplays() {
   for (let i in availableDisplays) {
 
     const targetDisplay = availableDisplays[i];
-
-    console.log('targetDisplay', i);
-    console.log(targetDisplay);
-
     let foundMatch = false;
 
     // Find matching config display
@@ -169,7 +169,7 @@ function launchWindowsToDisplays() {
 
     if (!displayConfig.targetDisplay) {
 
-      logIssue('Display Warning: ' + displayConfig.label + ' was not found.');
+      logIssue('Config display [' + displayConfig.targetDisplayId + '] ' + displayConfig.label + ' not found.');
 
     }
 
@@ -398,18 +398,24 @@ function loadWindowsUptimeDelay() {
 
 }
 
+function setupIssueLog() {
+
+  issues = [];
+
+  // Set approximate maximum log size in bytes. When it exceeds,
+  // the archived log will be saved as the log.old.log file
+  log.transports.file.maxSize = 5 * 1024 * 1024;
+
+}
+
 function logIssue(issueMsg) {
 
   console.log('Log Issue --> ' + issueMsg);
 
+  log.error('' + issueMsg);
+
   // Log cumulating issues
   issues.push(issueMsg);
-
-}
-
-function clearIssues() {
-
-  issues = [];
 
 }
 

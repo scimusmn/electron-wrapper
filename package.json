@@ -22,6 +22,7 @@
     "test": "node ./tasks/start --env=test"
   },
   "dependencies": {
-    "electron": "^1.8.4"
+    "electron": "^1.8.4",
+    "electron-log": "^2.2.15"
   }
 }
